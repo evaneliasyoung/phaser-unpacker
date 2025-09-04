@@ -1,0 +1,80 @@
+name: pipeline
+
+env:
+  ForcedGoVersion: 1.25.0
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [windows, darwin, linux]
+        arch: [amd64, arm64]
+        exclude:
+          - os: windows
+            arch: arm64
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v5
+
+      - name: setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{env.ForcedGoVersion}}
+
+      - name: build
+        env:
+          GOOS: ${{matrix.os}}
+          GOARCH: ${{matrix.arch}}
+        run: go build -o ./dist/phaser-unpacker-${{matrix.os}}-${{matrix.arch}}
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: phaser-unpacker-${{matrix.os}}-${{matrix.arch}}
+          path: ./dist/phaser-unpacker-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: phaser-unpacker-*
+          merge-multiple: true
+
+      - name: rename artfifacts
+        run: |
+          cd ./artifacts
+          mv phaser-unpacker-windows-amd64 phaser-unpacker-windows-x86_64.exe
+          mv phaser-unpacker-darwin-amd64 phaser-unpacker-macos-x86_64
+          mv phaser-unpacker-darwin-arm64 phaser-unpacker-macos-aarch64
+          mv phaser-unpacker-linux-amd64 phaser-unpacker-linux-x86_64
+          mv phaser-unpacker-linux-arm64 phaser-unpacker-linux-aarch64
+
+      - name: generate checksums
+        run: |
+          cd ./artifacts
+          sha256sum phaser-unpacker-windows-x86_64.exe phaser-unpacker-macos-x86_64 phaser-unpacker-macos-aarch64 phaser-unpacker-linux-x86_64 phaser-unpacker-linux-aarch64 > checksums.txt
+
+      - name: release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./artifacts/phaser-unpacker-windows-x86_64.exe
+            ./artifacts/phaser-unpacker-macos-x86_64
+            ./artifacts/phaser-unpacker-macos-aarch64
+            ./artifacts/phaser-unpacker-linux-x86_64
+            ./artifacts/phaser-unpacker-linux-aarch64
