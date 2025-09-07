@@ -102,6 +102,15 @@ func (unpacker Unpacker) unpackTexture(texture Texture, img image.Image) error {
 
 	outputPath := filepath.Join(unpacker.OutputDir, texture.FileName+".png")
 
+	if strings.Contains(texture.FileName, "/") {
+		parts := strings.Split(texture.FileName, "/")
+		subDir := filepath.Join(unpacker.OutputDir, filepath.Join(parts...))
+
+		if err := os.MkdirAll(subDir, 0o755); err != nil {
+			return fmt.Errorf("failed to create output directory: %w", err)
+		}
+	}
+
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
 		return fmt.Errorf("failed to open output file: %w", err)
