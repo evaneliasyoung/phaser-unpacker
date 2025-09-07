@@ -1,7 +1,7 @@
 name: pipeline
 
 env:
-  ForcedGoVersion: 1.25.0
+  ForcedGoVersion: 1.25.1
 
 on:
   push:
